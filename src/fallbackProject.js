@@ -186,7 +186,7 @@ export const fallbackProject = {
       specsToConfirm: ["tube OD/ID", "cut length", "end interface", "twist stiffness"],
       geometry: {
         primitives: [
-          { shape: "box", size: [0.28, 1.7, 0.28], position: [1.67, 2.56, 0], rotation: [0, 0, -1.07], colorRole: "custom" },
+          { shape: "box", size: [0.28, 1.62, 0.28], position: [1.55, 2.34, 0], rotation: [0, 0, -2.24], colorRole: "custom" },
         ],
       },
     },
@@ -255,6 +255,7 @@ export const fallbackProject = {
       geometry: {
         primitives: [
           { shape: "cylinder", size: [0.16, 0.16, 0.38], position: [2.75, 1.86, 0], rotation: [0, 0, 1.5708], colorRole: "cots" },
+          { shape: "box", size: [0.32, 0.18, 0.18], position: [2.88, 1.86, 0], rotation: [0, 0, 0], colorRole: "cots" },
         ],
       },
     },
@@ -271,7 +272,7 @@ export const fallbackProject = {
       specsToConfirm: ["bolt circle", "pilot diameter", "tool pattern", "thickness"],
       geometry: {
         primitives: [
-          { shape: "cylinder", size: [0.28, 0.28, 0.08], position: [2.98, 1.86, 0], rotation: [0, 0, 1.5708], colorRole: "custom" },
+          { shape: "cylinder", size: [0.28, 0.28, 0.1], position: [3.03, 1.86, 0], rotation: [0, 0, 1.5708], colorRole: "custom" },
         ],
       },
     },
@@ -288,9 +289,11 @@ export const fallbackProject = {
       specsToConfirm: ["stroke", "payload", "mount pattern", "servo or pneumatic"],
       geometry: {
         primitives: [
-          { shape: "box", size: [0.18, 0.16, 0.72], position: [3.25, 2.04, 0.24], rotation: [0, 0, 0], colorRole: "cots" },
-          { shape: "box", size: [0.18, 0.16, 0.72], position: [3.25, 1.68, -0.24], rotation: [0, 0, 0], colorRole: "cots" },
-          { shape: "box", size: [0.28, 0.38, 0.22], position: [3.1, 1.86, 0], rotation: [0, 0, 0], colorRole: "cots" },
+          { shape: "box", size: [0.28, 0.34, 0.62], position: [3.16, 1.86, 0], rotation: [0, 0, 0], colorRole: "cots" },
+          { shape: "box", size: [0.74, 0.14, 0.13], position: [3.55, 1.94, 0.26], rotation: [0, 0, 0], colorRole: "cots" },
+          { shape: "box", size: [0.74, 0.14, 0.13], position: [3.55, 1.94, -0.26], rotation: [0, 0, 0], colorRole: "cots" },
+          { shape: "box", size: [0.14, 0.22, 0.2], position: [3.9, 1.9, 0.26], rotation: [0, 0, 0], colorRole: "cots" },
+          { shape: "box", size: [0.14, 0.22, 0.2], position: [3.9, 1.9, -0.26], rotation: [0, 0, 0], colorRole: "cots" },
         ],
       },
     },
