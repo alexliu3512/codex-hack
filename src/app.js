@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { fallbackProject } from "./fallbackProject.js";
+import { fallbackProject, fallbackProjects, getFallbackProject, getFallbackPrompt } from "./fallbackProject.js";
 
 const appShell = document.querySelector("#app-shell");
 const viewer = document.querySelector("#assembly-viewer");
@@ -10,6 +10,7 @@ const customCountEl = document.querySelector("#custom-count");
 const cotsCountEl = document.querySelector("#cots-count");
 const lineItemCountEl = document.querySelector("#line-item-count");
 const totalPartCountEl = document.querySelector("#total-part-count");
+const assemblyStatusMetricEl = document.querySelector("#assembly-status-metric");
 const sourcingPanel = document.querySelector("#sourcing-panel");
 const sourcingTitle = document.querySelector("#sourcing-title");
 const sourcingContent = document.querySelector("#sourcing-content");
@@ -17,6 +18,9 @@ const closeSourcingButton = document.querySelector("#close-sourcing");
 const promptForm = document.querySelector("#project-form");
 const promptInput = document.querySelector("#project-prompt");
 const generateButton = document.querySelector("#generate-project");
+const newProjectButton = document.querySelector("#new-project");
+const chatLog = document.querySelector("#chat-log");
+const fallbackDemoSelect = document.querySelector("#fallback-demo-select");
 const modelSelect = document.querySelector("#model-select");
 const generationStatus = document.querySelector("#generation-status");
 const projectTitle = document.querySelector("#project-title");
@@ -49,6 +53,9 @@ let parts = [...currentProject.parts];
 let selectedPartId = parts[0]?.id ?? "";
 let sourcingPanelOpen = false;
 let pointCloudMode = false;
+let hasUserProject = false;
+let chatMessages = [];
+let currentFallbackDemoId = fallbackProjects[0]?.id ?? "robot-arm";
 const selectedCatalogNames = new Map();
 const partGroups = new Map();
 
@@ -107,9 +114,13 @@ const selectedPointMaterial = new THREE.PointsMaterial({
 
 initScene();
 renderProject(fallbackProject);
+renderChatMessages();
+updatePromptMode();
 animate();
 
-promptForm.addEventListener("submit", handleGenerateProject);
+promptForm.addEventListener("submit", handleProjectChat);
+newProjectButton.addEventListener("click", resetProjectChat);
+fallbackDemoSelect.addEventListener("change", handleFallbackDemoChange);
 searchEl.addEventListener("input", () => renderParts(searchEl.value));
 closeSourcingButton.addEventListener("click", closeSourcingPanel);
 displayModeToggle.addEventListener("click", togglePointCloudMode);
@@ -147,41 +158,184 @@ function initScene() {
   scene.add(grid);
 }
 
-async function handleGenerateProject(event) {
+async function handleProjectChat(event) {
   event.preventDefault();
-  const prompt = promptInput.value.trim();
-  if (!prompt) return;
+  const message = promptInput.value.trim();
+  if (!message) return;
 
-  setGenerating(true, "Generating hardware manifest...");
+  const isUpdate = hasUserProject && currentProject?.parts?.length;
+  const uiSnapshot = isUpdate
+    ? {
+        selectedPartId,
+        selectedCatalogNames: Object.fromEntries(selectedCatalogNames.entries()),
+        searchFilter: searchEl.value,
+        pointCloudMode,
+        keepSourcingOpen: sourcingPanelOpen,
+      }
+    : {};
+  chatMessages.push({ role: "user", content: message });
+  renderChatMessages();
+  promptInput.value = "";
+  setGenerating(true, isUpdate ? "Updating hardware manifest..." : "Generating hardware manifest...");
   try {
-    const response = await fetch("/api/generate-project", {
+    const visualInspection = isUpdate ? await captureVisualInspectionSnapshot() : undefined;
+    if (visualInspection) {
+      setGenerating(true, "Inspecting rendered assembly, then updating manifest...");
+    }
+
+    const response = await fetch(isUpdate ? "/api/update-project" : "/api/generate-project", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, model: modelSelect.value }),
+      body: JSON.stringify({
+        prompt: message,
+        model: modelSelect.value,
+        fallbackDemo: currentFallbackDemoId,
+        project: isUpdate ? currentProject : undefined,
+        messages: chatMessages.slice(-10),
+        visualInspection,
+      }),
     });
     const data = await response.json();
     if (!response.ok) {
       if (data.fallback) {
-        renderProject(data.fallback);
-        setGenerating(false, `Generation failed: ${data.detail || data.error || "unknown error"}. Showing fallback demo.`);
+        renderProject(data.fallback, uiSnapshot);
+        hasUserProject = true;
+        chatMessages.push({
+          role: "assistant",
+          content: data.assistantMessage ?? "I could not apply that turn, so I kept the last available manifest loaded.",
+        });
+        renderChatMessages();
+        updatePromptMode();
+        setGenerating(
+          false,
+          `${isUpdate ? "Update" : "Generation"} failed: ${data.detail || data.error || "unknown error"}. ${
+            isUpdate ? "Project unchanged." : "Showing fallback demo."
+          }`,
+        );
         return;
       }
       throw new Error(data.detail || data.error || "Generation failed");
     }
-    renderProject(data);
+    renderProject(data, uiSnapshot);
+    hasUserProject = true;
+    chatMessages.push({
+      role: "assistant",
+      content: data.assistantMessage ?? (isUpdate ? "Updated the project manifest." : "Generated the first project manifest."),
+    });
+    renderChatMessages();
+    updatePromptMode();
     setGenerating(false, data.statusLabel ?? "Project generated");
   } catch (error) {
     console.error(error);
     const message = error instanceof Error ? error.message : "unknown error";
-    setGenerating(false, `Generation failed: ${message}. Showing fallback demo.`);
+    chatMessages.push({ role: "assistant", content: `Could not update the project: ${message}` });
+    renderChatMessages();
+    updatePromptMode();
+    setGenerating(false, `${hasUserProject ? "Update" : "Generation"} failed: ${message}.`);
   }
 }
 
 function setGenerating(isGenerating, message) {
   generateButton.disabled = isGenerating;
   promptInput.disabled = isGenerating;
+  fallbackDemoSelect.disabled = isGenerating;
   modelSelect.disabled = isGenerating;
+  newProjectButton.disabled = isGenerating;
   generationStatus.textContent = message;
+}
+
+function renderChatMessages() {
+  chatLog.innerHTML = "";
+  if (chatMessages.length === 0) {
+    chatLog.hidden = true;
+    return;
+  }
+
+  chatLog.hidden = false;
+  chatMessages.slice(-6).forEach((message) => {
+    const bubble = document.createElement("div");
+    bubble.className = `chat-message chat-message-${message.role}`;
+    bubble.innerHTML = `
+      <span>${message.role === "user" ? "You" : "Project"}</span>
+      <p>${escapeHtml(message.content)}</p>
+    `;
+    chatLog.appendChild(bubble);
+  });
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
+
+function updatePromptMode() {
+  generateButton.textContent = hasUserProject ? "Send" : "Generate";
+  promptInput.placeholder = hasUserProject
+    ? "Make it lighter, add a camera mount, swap servos for steppers..."
+    : getFallbackPrompt(currentFallbackDemoId);
+}
+
+function resetProjectChat() {
+  loadFallbackDemo(currentFallbackDemoId, {
+    status: "Ready for a new project prompt.",
+    resetPrompt: true,
+  });
+}
+
+function handleFallbackDemoChange() {
+  loadFallbackDemo(fallbackDemoSelect.value, {
+    status: "Fallback demo loaded.",
+    resetPrompt: true,
+  });
+}
+
+function loadFallbackDemo(demoId, options = {}) {
+  currentFallbackDemoId = fallbackProjects.find((demo) => demo.id === demoId)?.id ?? fallbackProjects[0].id;
+  fallbackDemoSelect.value = currentFallbackDemoId;
+  hasUserProject = false;
+  chatMessages = [];
+  if (options.resetPrompt) promptInput.value = getFallbackPrompt(currentFallbackDemoId);
+  renderChatMessages();
+  updatePromptMode();
+  renderProject(getFallbackProject(currentFallbackDemoId));
+  generationStatus.textContent = options.status ?? "Fallback demo loaded.";
+}
+
+async function captureVisualInspectionSnapshot() {
+  try {
+    await waitForNextFrame();
+    renderer.render(scene, camera);
+    const source = renderer.domElement;
+    const maxWidth = 960;
+    const scale = Math.min(1, maxWidth / Math.max(1, source.width));
+    const captureCanvas = document.createElement("canvas");
+    captureCanvas.width = Math.max(1, Math.round(source.width * scale));
+    captureCanvas.height = Math.max(1, Math.round(source.height * scale));
+    const context = captureCanvas.getContext("2d");
+    if (!context) return null;
+
+    context.drawImage(source, 0, 0, captureCanvas.width, captureCanvas.height);
+    const selectedPart = parts.find((part) => part.id === selectedPartId);
+    return {
+      imageUrl: captureCanvas.toDataURL("image/jpeg", 0.82),
+      capturedAt: new Date().toISOString(),
+      viewport: {
+        width: captureCanvas.width,
+        height: captureCanvas.height,
+        sourceWidth: source.width,
+        sourceHeight: source.height,
+        devicePixelRatio: window.devicePixelRatio,
+      },
+      camera: getCameraState(),
+      selectedPartId,
+      selectedPartName: selectedPart?.name ?? "",
+      pointCloudMode,
+    };
+  } catch (error) {
+    console.warn("Visual inspection capture failed", error);
+    generationStatus.textContent = "Could not capture a visual inspection; updating from manifest only.";
+    return null;
+  }
+}
+
+function waitForNextFrame() {
+  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
 }
 
 function renderProject(project, options = {}) {
@@ -244,11 +398,14 @@ function makePrimitiveMesh(part, primitive) {
   const [a = 0.35, b = 0.35, c = 0.35] = primitive.size ?? [];
   let geometry;
   if (primitive.shape === "cylinder") {
-    geometry = new THREE.CylinderGeometry(Math.max(0.03, a), Math.max(0.03, b), Math.max(0.03, c), 48);
+    const [topRadius, bottomRadius, height] = [a, b, c];
+    geometry = new THREE.CylinderGeometry(Math.max(0.03, topRadius), Math.max(0.03, bottomRadius), Math.max(0.03, height), 48);
   } else if (primitive.shape === "sphere") {
-    geometry = new THREE.SphereGeometry(Math.max(0.05, a), 48, 24);
+    const [radius] = [a];
+    geometry = new THREE.SphereGeometry(Math.max(0.05, radius), 48, 24);
   } else {
-    geometry = new THREE.BoxGeometry(Math.max(0.04, a), Math.max(0.04, b), Math.max(0.04, c));
+    const [width, height, depth] = [a, b, c];
+    geometry = new THREE.BoxGeometry(Math.max(0.04, width), Math.max(0.04, height), Math.max(0.04, depth));
   }
 
   const mesh = new THREE.Mesh(geometry, normalMaterials[primitive.colorRole ?? part.type] ?? normalMaterials[part.type]);
@@ -431,6 +588,7 @@ function updateCounts() {
   const totalQty = parts.reduce((sum, part) => sum + Number(part.qty || 0), 0);
   lineItemCountEl.textContent = `${parts.length} line items`;
   totalPartCountEl.textContent = `${totalQty} total parts`;
+  assemblyStatusMetricEl.textContent = currentProject.statusMetric ?? "prototype BOM";
   customCountEl.textContent = `${custom} custom`;
   cotsCountEl.textContent = `${parts.length - custom} COTS`;
 }
@@ -699,6 +857,9 @@ function saveProject() {
     sourcing: buildSourcingSnapshot(),
     ui: {
       prompt: promptInput.value,
+      fallbackDemoId: currentFallbackDemoId,
+      hasUserProject,
+      chatMessages,
       searchFilter: searchEl.value,
       selectedPartId,
       sourcingPanelOpen,
@@ -749,7 +910,13 @@ function loadSavedProject(savedProject) {
   if (!project?.parts?.length) throw new Error("Saved project does not include parts.");
 
   const ui = savedProject.ui ?? {};
+  currentFallbackDemoId = fallbackProjects.find((demo) => demo.id === ui.fallbackDemoId)?.id ?? currentFallbackDemoId;
+  fallbackDemoSelect.value = currentFallbackDemoId;
   promptInput.value = ui.prompt ?? savedProject.prompt ?? promptInput.value;
+  hasUserProject = Boolean(ui.hasUserProject ?? true);
+  chatMessages = Array.isArray(ui.chatMessages) ? ui.chatMessages.filter(isChatMessage).slice(-20) : [];
+  renderChatMessages();
+  updatePromptMode();
   renderProject(project, {
     selectedPartId: ui.selectedPartId,
     selectedCatalogNames: ui.selectedCatalogNames,
@@ -758,6 +925,10 @@ function loadSavedProject(savedProject) {
     camera: ui.camera,
     keepSourcingOpen: Boolean(ui.sourcingPanelOpen),
   });
+}
+
+function isChatMessage(message) {
+  return ["user", "assistant"].includes(message?.role) && typeof message?.content === "string";
 }
 
 function getCameraState() {

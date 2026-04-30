@@ -3,15 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>6DOF Arm Assembly</title>
+    <title>Hardware Assembly Demos</title>
     <link rel="stylesheet" href="./src/styles.css" />
   </head>
   <body>
     <main id="app-shell" class="app-shell">
       <section class="viewer-panel" aria-label="3D assembly viewer">
         <div id="assembly-viewer" class="assembly-viewer"></div>
-        <form id="project-form" class="project-form" aria-label="Generate hardware project">
-          <label for="project-prompt">Hardware Project Prompt</label>
+        <form id="project-form" class="project-form" aria-label="Chat with hardware project">
+          <div class="form-heading">
+            <label for="project-prompt">Project Chat</label>
+            <button id="new-project" class="text-button" type="button">New Project</button>
+          </div>
+          <div id="chat-log" class="chat-log" aria-live="polite"></div>
           <div class="prompt-row">
             <textarea
               id="project-prompt"
@@ -21,6 +25,12 @@
             <button id="generate-project" type="submit">Generate</button>
           </div>
           <div class="model-row">
+            <label for="fallback-demo-select">Demo</label>
+            <select id="fallback-demo-select" aria-label="Fallback demo">
+              <option value="robot-arm" selected>Robot Arm</option>
+              <option value="corexy-printer">3D Printer</option>
+              <option value="quadcopter">Quadcopter</option>
+            </select>
             <label for="model-select">Model</label>
             <select id="model-select" aria-label="Model">
               <option value="gpt-5.4-mini" selected>gpt-5.4-mini</option>
@@ -55,7 +65,7 @@
           <div class="status-strip" aria-label="Assembly status">
             <span id="line-item-count">18 line items</span>
             <span id="total-part-count">30 total parts</span>
-            <span>6 driven axes</span>
+            <span id="assembly-status-metric">6 driven axes</span>
           </div>
         </div>
       </section>
@@ -74,7 +84,7 @@
           <input id="part-search" type="search" placeholder="Filter parts" aria-label="Filter parts" />
         </div>
 
-        <div id="parts-list" class="parts-list" role="listbox" aria-label="Robotic arm parts"></div>
+        <div id="parts-list" class="parts-list" role="listbox" aria-label="Hardware demo parts"></div>
       </aside>
 
       <aside id="sourcing-panel" class="sourcing-panel" aria-live="polite" aria-label="Part sourcing details" hidden>

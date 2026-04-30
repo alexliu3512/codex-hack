@@ -14,8 +14,8 @@ from that manifest.
 - Reads `OPENAI_API_KEY` from the shell or a local `.env` file.
 - Also accepts lowercase `openai_api_key` for local convenience.
 - Optional model override: `OPENAI_MODEL`, defaulting to `gpt-5.4-mini`.
-- Without a token, the endpoint returns the 6DOF arm fallback manifest from
-  `src/fallbackProject.js`.
+- Without a token, the endpoint returns the selected fallback demo manifest from
+  `src/fallbackProject.js` (`Robot Arm` or `3D Printer`).
 
 **To make live:** add `OPENAI_API_KEY=...` to `.env` or the shell and restart
 `npm start`.
