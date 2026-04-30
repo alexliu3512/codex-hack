@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cadybara STL Test Viewer</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <section class="viewer-panel">
+        <div id="viewer" class="viewer"></div>
+        <form id="generate-form" class="generate-form">
+          <label for="prompt">Cadybara Prompt</label>
+          <textarea id="prompt" rows="3">A 30mm cube with a 10mm cylindrical hole through the center</textarea>
+          <div class="controls-row">
+            <label>
+              Linear deflection
+              <input id="linear-deflection" type="number" min="0.01" max="0.5" step="0.01" value="0.05" />
+            </label>
+            <label>
+              Angular deflection
+              <input id="angular-deflection" type="number" min="0.01" max="0.5" step="0.01" value="0.1" />
+            </label>
+            <button id="generate-button" type="submit">Generate STL</button>
+          </div>
+          <p id="status" class="status">Ready. Add CADYBARA_API_KEY to .env, then generate a model.</p>
+        </form>
+      </section>
+
+      <aside class="model-panel">
+        <header>
+          <p class="eyebrow">Generated Files</p>
+          <h1>STL Models</h1>
+        </header>
+        <div id="model-list" class="model-list"></div>
+      </aside>
+    </main>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.164.1/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.164.1/examples/jsm/"
+        }
+      }
+    </script>
+    <script type="module" src="./viewer.js"></script>
+  </body>
+</html>

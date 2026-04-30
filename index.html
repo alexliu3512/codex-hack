@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>6DOF Arm Assembly</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <main id="app-shell" class="app-shell">
+      <section class="viewer-panel" aria-label="3D assembly viewer">
+        <div id="assembly-viewer" class="assembly-viewer"></div>
+        <form id="project-form" class="project-form" aria-label="Generate hardware project">
+          <label for="project-prompt">Hardware Project Prompt</label>
+          <div class="prompt-row">
+            <textarea
+              id="project-prompt"
+              rows="2"
+              placeholder="Build a 6DOF robotic arm with a two-finger gripper"
+            >Build a 6DOF robotic arm with a two-finger gripper</textarea>
+            <button id="generate-project" type="submit">Generate</button>
+          </div>
+          <div class="model-row">
+            <label for="model-select">Model</label>
+            <select id="model-select" aria-label="Model">
+              <option value="gpt-5.4-mini" selected>gpt-5.4-mini</option>
+              <option value="gpt-5.5-2026-04-23">gpt-5.5-2026-04-23</option>
+            </select>
+          </div>
+          <div class="form-footer">
+            <span id="generation-status">Fallback demo loaded. Add OPENAI_API_KEY to generate live manifests.</span>
+            <span id="project-status-label">Fallback manifest</span>
+          </div>
+        </form>
+
+        <div class="project-actions" aria-label="Project file actions">
+          <button id="save-project" type="button">Save Project</button>
+          <label for="load-project">Load Project</label>
+          <input id="load-project" type="file" accept="application/json,.json" />
+        </div>
+
+        <div class="viewer-controls" aria-label="Viewer controls">
+          <span id="display-mode-label">Solid CAD</span>
+          <button id="display-mode-toggle" class="display-mode-toggle" type="button" aria-pressed="false">Point Cloud</button>
+        </div>
+
+        <div class="viewer-toolbar">
+          <div>
+            <p class="eyebrow">Assembly Visualization</p>
+            <h1 id="project-title">6DOF Robotic Arm</h1>
+            <p id="project-summary" class="project-summary">
+              A desktop-scale 6-axis robotic arm with a rotating base, shoulder, elbow, wrist, and two-finger gripper.
+            </p>
+          </div>
+          <div class="status-strip" aria-label="Assembly status">
+            <span id="line-item-count">18 line items</span>
+            <span id="total-part-count">30 total parts</span>
+            <span>6 driven axes</span>
+          </div>
+        </div>
+      </section>
+
+      <aside class="parts-panel" aria-label="Bill of materials">
+        <header class="parts-header">
+          <p class="eyebrow">Required Parts</p>
+          <h2>Assembly BOM</h2>
+          <div class="summary-row">
+            <span id="custom-count">0 custom</span>
+            <span id="cots-count">0 COTS</span>
+          </div>
+        </header>
+
+        <div class="search-row">
+          <input id="part-search" type="search" placeholder="Filter parts" aria-label="Filter parts" />
+        </div>
+
+        <div id="parts-list" class="parts-list" role="listbox" aria-label="Robotic arm parts"></div>
+      </aside>
+
+      <aside id="sourcing-panel" class="sourcing-panel" aria-live="polite" aria-label="Part sourcing details" hidden>
+        <div class="sourcing-header">
+          <div>
+            <p class="eyebrow">Sourcing</p>
+            <h3 id="sourcing-title">Part source</h3>
+          </div>
+          <button id="close-sourcing" class="icon-button" type="button" aria-label="Close sourcing panel">x</button>
+        </div>
+        <div id="sourcing-content" class="sourcing-content"></div>
+      </aside>
+    </main>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.164.1/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.164.1/examples/jsm/"
+        }
+      }
+    </script>
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>
